@@ -1,4 +1,7 @@
 
+export 'src/pickers/date_time_picker.dart';
+export 'src/pickers/date_time_format.dart';
+
 import 'desktop_widgets_platform_interface.dart';
 
 class DesktopWidgets {

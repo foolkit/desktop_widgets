@@ -70,7 +70,7 @@ enable_testing()
 include(FetchContent)
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/release-1.11.0.zip
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
 # Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -78,12 +78,19 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(INSTALL_GTEST OFF CACHE BOOL "Disable installation of googletest" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# googletest 1.14+ requires C++17
+set_property(TARGET gtest PROPERTY CXX_STANDARD 17)
+set_property(TARGET gtest_main PROPERTY CXX_STANDARD 17)
+set_property(TARGET gmock PROPERTY CXX_STANDARD 17)
+set_property(TARGET gmock_main PROPERTY CXX_STANDARD 17)
+
 # The plugin's C API is not very useful for unit testing, so build the sources
 # directly into the test binary rather than using the DLL.
 add_executable(${TEST_RUNNER}
   test/desktop_widgets_plugin_test.cpp
   ${PLUGIN_SOURCES}
 )
+set_property(TARGET ${TEST_RUNNER} PROPERTY CXX_STANDARD 17)
 apply_standard_settings(${TEST_RUNNER})
 target_include_directories(${TEST_RUNNER} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${TEST_RUNNER} PRIVATE flutter_wrapper_plugin)

@@ -1,59 +1,58 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'package:flutter/services.dart';
 import 'package:desktop_widgets/desktop_widgets.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
-  final _desktopWidgetsPlugin = DesktopWidgets();
-
-  @override
-  void initState() {
-    super.initState();
-    initPlatformState();
-  }
-
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    try {
-      platformVersion =
-          await _desktopWidgetsPlugin.getPlatformVersion() ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
-
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Desktop Widgets Demo',
       home: Scaffold(
-        appBar: AppBar(title: const Text('Plugin example app')),
-        body: Center(child: Text('Running on: $_platformVersion\n')),
+        appBar: AppBar(title: const Text('DateTimePicker Demo')),
+        body: const Padding(
+          padding: EdgeInsets.all(24),
+          child: DateTimePickerDemo(),
+        ),
       ),
+    );
+  }
+}
+
+class DateTimePickerDemo extends StatefulWidget {
+  const DateTimePickerDemo({super.key});
+
+  @override
+  State<DateTimePickerDemo> createState() => _DateTimePickerDemoState();
+}
+
+class _DateTimePickerDemoState extends State<DateTimePickerDemo> {
+  DateTime _value = DateTime.now();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Selected: $_value', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 16),
+        DateTimePicker(
+          initialValue: _value,
+          onChanged: (v) => setState(() => _value = v),
+        ),
+        const SizedBox(height: 16),
+        DateTimePicker(
+          initialValue: _value,
+          format: const DateTimeFormatConfig(dateFirst: false),
+          showSeconds: false,
+          onChanged: (v) => setState(() => _value = v),
+          panelMaxHeight: 400,
+        ),
+      ],
     );
   }
 }
