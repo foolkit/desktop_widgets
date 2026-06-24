@@ -1,15 +1,15 @@
 # desktop_widgets
 
-A new Flutter plugin project.
+A Flutter plugin that includes multiple desktop-style widgets
 
-## Getting Started
+## Goals
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/to/develop-plugins),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+- Compatible with Windows, Linux, and macOS platforms.
+- Better suited for mouse and keyboard operation.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Developing widgets
+
+- DateTimePicker
+- SideSplitLayout
+
 
