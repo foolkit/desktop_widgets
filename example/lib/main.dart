@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:desktop_widgets/desktop_widgets.dart';
 import 'side_split_layout_demo.dart';
+import 'split_layout_demo.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,7 +15,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Desktop Widgets Demo',
       home: DefaultTabController(
-        length: 2,
+        length: 3,
         child: Scaffold(
           appBar: AppBar(
             title: const Text('Desktop Widgets Demo'),
@@ -22,6 +23,7 @@ class MyApp extends StatelessWidget {
               tabs: <Widget>[
                 Tab(text: 'DateTimePicker'),
                 Tab(text: 'SideSplitLayout'),
+                Tab(text: 'SplitLayout'),
               ],
             ),
           ),
@@ -32,6 +34,7 @@ class MyApp extends StatelessWidget {
                 child: DateTimePickerDemo(),
               ),
               SideSplitLayoutDemo(),
+              SplitLayoutDemo(),
             ],
           ),
         ),
