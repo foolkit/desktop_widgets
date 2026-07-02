@@ -11,7 +11,17 @@ class SideSplitLayoutDemo extends StatefulWidget {
 class _SideSplitLayoutDemoState extends State<SideSplitLayoutDemo> {
   int? _selectedIndex;
 
-  static const List<String> _labels = <String>['Search', 'Settings', 'Notification'];
+  static const List<String> _labels = <String>[
+    'Search',
+    'Settings',
+    'Notification',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +31,7 @@ class _SideSplitLayoutDemoState extends State<SideSplitLayoutDemo> {
       sideWidth: 64,
       panelWidth: 280,
       backgroundColor: theme.colorScheme.surfaceContainerHighest,
+      initialSelectedIndex: 0,
       onSelectedIndexChanged: (index) => setState(() => _selectedIndex = index),
       panels: <SidePanel>[
         SidePanel(
@@ -67,10 +78,7 @@ class _SideSplitLayoutDemoState extends State<SideSplitLayoutDemo> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(
-              'Main area',
-              style: theme.textTheme.headlineSmall,
-            ),
+            Text('Main area', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
               'Current selection：${_selectedIndex != null ? _labels[_selectedIndex!] : 'None'}',

@@ -44,9 +44,14 @@ class SideSplitLayout extends StatefulWidget {
     this.dividerWidth = 1,
     this.dividerColor,
     this.backgroundColor,
+    this.initialSelectedIndex,
     this.selectedIndex,
     this.onSelectedIndexChanged,
-  });
+  }) : assert(
+          selectedIndex == null || initialSelectedIndex == null,
+          'Do not provide both selectedIndex and initialSelectedIndex. '
+          'Use selectedIndex for controlled mode, or initialSelectedIndex for uncontrolled mode.',
+        );
 
   /// 主分栏内容，始终显示。
   final Widget child;
@@ -81,6 +86,11 @@ class SideSplitLayout extends StatefulWidget {
   /// 侧边按钮栏背景色。
   final Color? backgroundColor;
 
+  /// 非受控模式下初始激活的副分栏索引。
+  ///
+  /// 仅在 [selectedIndex] 为 null 时生效。
+  final int? initialSelectedIndex;
+
   /// 受控模式下当前激活的副分栏索引。
   final int? selectedIndex;
 
@@ -93,13 +103,32 @@ class SideSplitLayout extends StatefulWidget {
 
 class _SideSplitLayoutState extends State<SideSplitLayout> {
   int? _selectedIndex;
+  int? _interactionIndex;
   final Map<int, double> _panelWidths = <int, double>{};
 
   int? get _effectiveIndex => widget.selectedIndex ?? _selectedIndex;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.selectedIndex == null) {
+      _selectedIndex = widget.initialSelectedIndex;
+    }
+    _interactionIndex = _effectiveIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant SideSplitLayout oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedIndex != oldWidget.selectedIndex) {
+      _interactionIndex = widget.selectedIndex;
+    }
+  }
+
   void _togglePanel(int index) {
-    final current = _effectiveIndex;
+    final current = _interactionIndex ?? _effectiveIndex;
     final next = current == index ? null : index;
+    _interactionIndex = next;
 
     if (widget.selectedIndex == null) {
       setState(() => _selectedIndex = next);

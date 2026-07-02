@@ -110,6 +110,27 @@ void main() {
       expect(find.text('Panel 0'), findsNothing);
     });
 
+    testWidgets('supports initialSelectedIndex in uncontrolled mode', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SideSplitLayout(
+              initialSelectedIndex: 0,
+              panels: const [
+                SidePanel(
+                  button: Icon(Icons.search),
+                  panel: Text('Panel 0'),
+                ),
+              ],
+              child: const Text('Main Content'),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Panel 0'), findsOneWidget);
+    });
+
     testWidgets('calls onSelectedIndexChanged with correct index', (tester) async {
       int? captured;
 
@@ -186,6 +207,36 @@ void main() {
 
       expect(find.text('Panel 0'), findsOneWidget);
       expect(find.text('Panel 1'), findsNothing);
+    });
+
+    testWidgets('toggles correctly with controlled selectedIndex on fast repeated taps', (tester) async {
+      int? selected;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => SideSplitLayout(
+                panels: const [
+                  SidePanel(
+                    button: Icon(Icons.search),
+                    panel: Text('Panel 0'),
+                  ),
+                ],
+                selectedIndex: selected,
+                onSelectedIndexChanged: (index) => setState(() => selected = index),
+                child: const Text('Main Content'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Panel 0'), findsNothing);
     });
 
     testWidgets('panel uses default width', (tester) async {

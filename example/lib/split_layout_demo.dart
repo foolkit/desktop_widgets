@@ -112,7 +112,7 @@ class _SplitLayoutDemoState extends State<SplitLayoutDemo> {
               controller: _controller,
               panels: <SplitPanel>[
                 SplitPanel(
-                  size: _sizeUnit == SplitSizeUnit.proportional ? 0.4 : 200,
+                  size: _sizeUnit == SplitSizeUnit.proportional ? 1/3 : 200,
                   minSize: _sizeUnit == SplitSizeUnit.proportional ? 0.0 : 100,
                   maxSize: _sizeUnit == SplitSizeUnit.proportional ? 1.0 : 400,
                   backgroundColor: theme.colorScheme.primaryContainer,
