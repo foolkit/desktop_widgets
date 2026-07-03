@@ -2,18 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:desktop_widgets/src/layouts/side_split_layout.dart';
 
+class _CounterPanel extends StatefulWidget {
+  const _CounterPanel({required this.label});
+
+  final String label;
+
+  @override
+  State<_CounterPanel> createState() => _CounterPanelState();
+}
+
+class _CounterPanelState extends State<_CounterPanel> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text('${widget.label}: $_count'),
+          TextButton(
+            onPressed: () => setState(() => _count++),
+            child: const Text('Increment'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 void main() {
   group('SideSplitLayout', () {
-    testWidgets('displays main child and no side panel by default', (tester) async {
+    testWidgets('displays main child and no side panel by default', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: SideSplitLayout(
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),
@@ -31,14 +59,8 @@ void main() {
           home: Scaffold(
             body: SideSplitLayout(
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
-                SidePanel(
-                  button: Icon(Icons.settings),
-                  panel: Text('Panel 1'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
+                SidePanel(button: Icon(Icons.settings), panel: Text('Panel 1')),
               ],
               child: const Text('Main Content'),
             ),
@@ -59,14 +81,8 @@ void main() {
           home: Scaffold(
             body: SideSplitLayout(
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
-                SidePanel(
-                  button: Icon(Icons.settings),
-                  panel: Text('Panel 1'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
+                SidePanel(button: Icon(Icons.settings), panel: Text('Panel 1')),
               ],
               child: const Text('Main Content'),
             ),
@@ -90,10 +106,7 @@ void main() {
           home: Scaffold(
             body: SideSplitLayout(
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),
@@ -110,17 +123,16 @@ void main() {
       expect(find.text('Panel 0'), findsNothing);
     });
 
-    testWidgets('supports initialSelectedIndex in uncontrolled mode', (tester) async {
+    testWidgets('supports initialSelectedIndex in uncontrolled mode', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: SideSplitLayout(
               initialSelectedIndex: 0,
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),
@@ -131,7 +143,9 @@ void main() {
       expect(find.text('Panel 0'), findsOneWidget);
     });
 
-    testWidgets('calls onSelectedIndexChanged with correct index', (tester) async {
+    testWidgets('calls onSelectedIndexChanged with correct index', (
+      tester,
+    ) async {
       int? captured;
 
       await tester.pumpWidget(
@@ -139,10 +153,7 @@ void main() {
           home: Scaffold(
             body: SideSplitLayout(
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               onSelectedIndexChanged: (index) => captured = index,
               child: const Text('Main Content'),
@@ -156,6 +167,189 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.search));
       expect(captured, isNull);
+    });
+
+    testWidgets('keeps alive panel state when keepAlive is enabled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SideSplitLayout(
+              panels: const [
+                SidePanel(
+                  button: Icon(Icons.search),
+                  keepAlive: true,
+                  panel: _CounterPanel(label: 'Panel 0'),
+                ),
+              ],
+              child: Text('Main Content'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+      expect(find.text('Panel 0: 0'), findsOneWidget);
+
+      await tester.tap(find.text('Increment'));
+      await tester.pumpAndSettle();
+      expect(find.text('Panel 0: 1'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+      expect(find.text('Panel 0: 1'), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+      expect(find.text('Panel 0: 1'), findsOneWidget);
+    });
+
+    testWidgets('animates panel width when opening and closing', (
+      tester,
+    ) async {
+      const animatedPanelKey = ValueKey<String>('sideSplitLayoutAnimatedPanel');
+      const animationDuration = Duration(milliseconds: 400);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SideSplitLayout(
+              panelWidth: 240,
+              panelAnimationDuration: animationDuration,
+              panelAnimationCurve: Curves.linear,
+              panels: const [
+                SidePanel(
+                  button: Icon(Icons.search),
+                  keepAlive: true,
+                  panel: Text('Panel 0'),
+                ),
+              ],
+              child: Text('Main Content'),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.getSize(find.byKey(animatedPanelKey)).width, 0);
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final openingWidth = tester.getSize(find.byKey(animatedPanelKey)).width;
+      expect(openingWidth, moreOrLessEquals(120, epsilon: 1));
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(animatedPanelKey)).width, 240);
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final closingWidth = tester.getSize(find.byKey(animatedPanelKey)).width;
+      expect(closingWidth, moreOrLessEquals(120, epsilon: 1));
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(animatedPanelKey)).width, 0);
+    });
+
+    testWidgets('animates resize handle width when opening and closing', (
+      tester,
+    ) async {
+      const handleKey = ValueKey<String>('sideSplitLayoutAnimatedResizeHandle');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SideSplitLayout(
+              panelWidth: 240,
+              panelAnimationDuration: const Duration(milliseconds: 400),
+              panelAnimationCurve: Curves.linear,
+              panels: const [
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
+              ],
+              child: const Text('Main Content'),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.getSize(find.byKey(handleKey)).width, 0);
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(
+        tester.getSize(find.byKey(handleKey)).width,
+        moreOrLessEquals(4, epsilon: 0.5),
+      );
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(handleKey)).width, 8);
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(
+        tester.getSize(find.byKey(handleKey)).width,
+        moreOrLessEquals(4, epsilon: 0.5),
+      );
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(handleKey)).width, 0);
+    });
+
+    testWidgets('animates continuously from panel A width to panel B width', (
+      tester,
+    ) async {
+      const animatedPanelKey = ValueKey<String>('sideSplitLayoutAnimatedPanel');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SideSplitLayout(
+              panelWidth: 240,
+              panelAnimationDuration: const Duration(milliseconds: 400),
+              panelAnimationCurve: Curves.linear,
+              mainPosition: SideSplitMainPosition.end,
+              panels: const [
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
+                SidePanel(button: Icon(Icons.settings), panel: Text('Panel 1')),
+              ],
+              child: const Text('Main Content'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find.byKey(const ValueKey<String>('sideSplitLayoutResizer')),
+        const Offset(120, 0),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byKey(animatedPanelKey)).width, 360);
+
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final transitioningWidth = tester
+          .getSize(find.byKey(animatedPanelKey))
+          .width;
+      expect(transitioningWidth, moreOrLessEquals(300, epsilon: 1));
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(animatedPanelKey)).width, 240);
+      expect(find.text('Panel 1'), findsOneWidget);
+      expect(find.text('Panel 0'), findsNothing);
     });
 
     testWidgets('renders extra buttons', (tester) async {
@@ -182,17 +376,15 @@ void main() {
             body: StatefulBuilder(
               builder: (context, setState) => SideSplitLayout(
                 panels: const [
-                  SidePanel(
-                    button: Icon(Icons.search),
-                    panel: Text('Panel 0'),
-                  ),
+                  SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
                   SidePanel(
                     button: Icon(Icons.settings),
                     panel: Text('Panel 1'),
                   ),
                 ],
                 selectedIndex: selected,
-                onSelectedIndexChanged: (index) => setState(() => selected = index),
+                onSelectedIndexChanged: (index) =>
+                    setState(() => selected = index),
                 child: const Text('Main Content'),
               ),
             ),
@@ -209,33 +401,108 @@ void main() {
       expect(find.text('Panel 1'), findsNothing);
     });
 
-    testWidgets('toggles correctly with controlled selectedIndex on fast repeated taps', (tester) async {
-      int? selected;
+    testWidgets(
+      'toggles correctly with controlled selectedIndex on fast repeated taps',
+      (tester) async {
+        int? selected;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) => SideSplitLayout(
+                  panels: const [
+                    SidePanel(
+                      button: Icon(Icons.search),
+                      panel: Text('Panel 0'),
+                    ),
+                  ],
+                  selectedIndex: selected,
+                  onSelectedIndexChanged: (index) =>
+                      setState(() => selected = index),
+                  child: const Text('Main Content'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.search));
+        await tester.tap(find.byIcon(Icons.search));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Panel 0'), findsNothing);
+      },
+    );
+
+    testWidgets('animates width changes in controlled mode', (tester) async {
+      const animatedPanelKey = ValueKey<String>('sideSplitLayoutAnimatedPanel');
+      int? selected = 0;
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: StatefulBuilder(
-              builder: (context, setState) => SideSplitLayout(
-                panels: const [
-                  SidePanel(
-                    button: Icon(Icons.search),
-                    panel: Text('Panel 0'),
+              builder: (context, setState) => Column(
+                children: <Widget>[
+                  TextButton(
+                    onPressed: () => setState(() => selected = 1),
+                    child: const Text('Select Panel 1'),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => selected = null),
+                    child: const Text('Hide Panel'),
+                  ),
+                  Expanded(
+                    child: SideSplitLayout(
+                      panelWidth: 240,
+                      panelAnimationDuration: const Duration(milliseconds: 400),
+                      panelAnimationCurve: Curves.linear,
+                      selectedIndex: selected,
+                      panels: const [
+                        SidePanel(
+                          button: Icon(Icons.search),
+                          panel: Text('Panel 0'),
+                        ),
+                        SidePanel(
+                          button: Icon(Icons.settings),
+                          panel: Text('Panel 1'),
+                        ),
+                      ],
+                      child: const Text('Main Content'),
+                    ),
                   ),
                 ],
-                selectedIndex: selected,
-                onSelectedIndexChanged: (index) => setState(() => selected = index),
-                child: const Text('Main Content'),
               ),
             ),
           ),
         ),
       );
 
-      await tester.tap(find.byIcon(Icons.search));
-      await tester.tap(find.byIcon(Icons.search));
-      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(animatedPanelKey)).width, 240);
 
+      await tester.tap(find.text('Hide Panel'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        tester.getSize(find.byKey(animatedPanelKey)).width,
+        moreOrLessEquals(120, epsilon: 1),
+      );
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(animatedPanelKey)).width, 0);
+
+      await tester.tap(find.text('Select Panel 1'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        tester.getSize(find.byKey(animatedPanelKey)).width,
+        moreOrLessEquals(120, epsilon: 1),
+      );
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(animatedPanelKey)).width, 240);
+      expect(find.text('Panel 1'), findsOneWidget);
       expect(find.text('Panel 0'), findsNothing);
     });
 
@@ -245,10 +512,7 @@ void main() {
           home: Scaffold(
             body: SideSplitLayout(
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),
@@ -263,17 +527,16 @@ void main() {
       expect(size.width, 250);
     });
 
-    testWidgets('resizes panel by dragging divider to the right', (tester) async {
+    testWidgets('resizes panel by dragging divider to the right', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: SideSplitLayout(
               mainPosition: SideSplitMainPosition.end,
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),
@@ -294,17 +557,16 @@ void main() {
       expect(size.width, 350);
     });
 
-    testWidgets('reverses drag direction when main panel is on the left', (tester) async {
+    testWidgets('reverses drag direction when main panel is on the left', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: SideSplitLayout(
               mainPosition: SideSplitMainPosition.start,
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),
@@ -342,10 +604,7 @@ void main() {
               mainPosition: SideSplitMainPosition.end,
               minPanelWidth: 120,
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),
@@ -373,14 +632,8 @@ void main() {
             body: SideSplitLayout(
               mainPosition: SideSplitMainPosition.end,
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
-                SidePanel(
-                  button: Icon(Icons.settings),
-                  panel: Text('Panel 1'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
+                SidePanel(button: Icon(Icons.settings), panel: Text('Panel 1')),
               ],
               child: const Text('Main Content'),
             ),
@@ -419,10 +672,7 @@ void main() {
           home: Scaffold(
             body: SideSplitLayout(
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),
@@ -439,17 +689,16 @@ void main() {
       expect(sidebarRect.right, greaterThan(panelRect.right));
     });
 
-    testWidgets('places sidebar on the left when mainPosition is end', (tester) async {
+    testWidgets('places sidebar on the left when mainPosition is end', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: SideSplitLayout(
               mainPosition: SideSplitMainPosition.end,
               panels: const [
-                SidePanel(
-                  button: Icon(Icons.search),
-                  panel: Text('Panel 0'),
-                ),
+                SidePanel(button: Icon(Icons.search), panel: Text('Panel 0')),
               ],
               child: const Text('Main Content'),
             ),

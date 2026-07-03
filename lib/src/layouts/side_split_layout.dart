@@ -13,7 +13,12 @@ enum SideSplitMainPosition {
 
 /// 一个可配置的面板项，用于 [SideSplitLayout]。
 class SidePanel {
-  const SidePanel({required this.button, required this.panel, this.tooltip});
+  const SidePanel({
+    required this.button,
+    required this.panel,
+    this.tooltip,
+    this.keepAlive = false,
+  });
 
   /// 显示在侧边按钮栏中的组件。
   final Widget button;
@@ -23,6 +28,9 @@ class SidePanel {
 
   /// 悬停在按钮上时显示的提示文本。
   final String? tooltip;
+
+  /// 面板关闭后是否保留其内部状态。
+  final bool keepAlive;
 }
 
 /// 左右分栏布局组件。
@@ -44,14 +52,16 @@ class SideSplitLayout extends StatefulWidget {
     this.dividerWidth = 1,
     this.dividerColor,
     this.backgroundColor,
+    this.panelAnimationDuration = const Duration(milliseconds: 200),
+    this.panelAnimationCurve = Curves.easeOutCubic,
     this.initialSelectedIndex,
     this.selectedIndex,
     this.onSelectedIndexChanged,
   }) : assert(
-          selectedIndex == null || initialSelectedIndex == null,
-          'Do not provide both selectedIndex and initialSelectedIndex. '
-          'Use selectedIndex for controlled mode, or initialSelectedIndex for uncontrolled mode.',
-        );
+         selectedIndex == null || initialSelectedIndex == null,
+         'Do not provide both selectedIndex and initialSelectedIndex. '
+         'Use selectedIndex for controlled mode, or initialSelectedIndex for uncontrolled mode.',
+       );
 
   /// 主分栏内容，始终显示。
   final Widget child;
@@ -86,6 +96,12 @@ class SideSplitLayout extends StatefulWidget {
   /// 侧边按钮栏背景色。
   final Color? backgroundColor;
 
+  /// 副分栏开合和 A 到 B 切换时的宽度动画时长。
+  final Duration panelAnimationDuration;
+
+  /// 副分栏开合和 A 到 B 切换时的宽度动画曲线。
+  final Curve panelAnimationCurve;
+
   /// 非受控模式下初始激活的副分栏索引。
   ///
   /// 仅在 [selectedIndex] 为 null 时生效。
@@ -105,6 +121,7 @@ class _SideSplitLayoutState extends State<SideSplitLayout> {
   int? _selectedIndex;
   int? _interactionIndex;
   final Map<int, double> _panelWidths = <int, double>{};
+  final Set<int> _keptAlivePanels = <int>{};
 
   int? get _effectiveIndex => widget.selectedIndex ?? _selectedIndex;
 
@@ -115,6 +132,7 @@ class _SideSplitLayoutState extends State<SideSplitLayout> {
       _selectedIndex = widget.initialSelectedIndex;
     }
     _interactionIndex = _effectiveIndex;
+    _syncKeptAlivePanels();
   }
 
   @override
@@ -123,17 +141,38 @@ class _SideSplitLayoutState extends State<SideSplitLayout> {
     if (widget.selectedIndex != oldWidget.selectedIndex) {
       _interactionIndex = widget.selectedIndex;
     }
+    _syncKeptAlivePanels();
   }
 
   void _togglePanel(int index) {
     final current = _interactionIndex ?? _effectiveIndex;
     final next = current == index ? null : index;
     _interactionIndex = next;
+    _cachePanelIfNeeded(next);
 
     if (widget.selectedIndex == null) {
       setState(() => _selectedIndex = next);
     }
     widget.onSelectedIndexChanged?.call(next);
+  }
+
+  void _cachePanelIfNeeded(int? index) {
+    if (index == null || index < 0 || index >= widget.panels.length) {
+      return;
+    }
+    if (widget.panels[index].keepAlive) {
+      _keptAlivePanels.add(index);
+    }
+  }
+
+  void _syncKeptAlivePanels() {
+    _keptAlivePanels.removeWhere(
+      (index) =>
+          index < 0 ||
+          index >= widget.panels.length ||
+          !widget.panels[index].keepAlive,
+    );
+    _cachePanelIfNeeded(_effectiveIndex);
   }
 
   double _widthFor(int index, double maxAvailable) {
@@ -172,24 +211,90 @@ class _SideSplitLayoutState extends State<SideSplitLayout> {
     return Tooltip(message: panel.tooltip, child: button);
   }
 
-  Widget _buildResizeHandle(int index, double maxAvailable) {
+  Widget _buildResizeHandle(int? index, double maxAvailable) {
+    final isEnabled = index != null;
+
     return MouseRegion(
-      cursor: SystemMouseCursors.resizeColumn,
+      cursor: isEnabled
+          ? SystemMouseCursors.resizeColumn
+          : SystemMouseCursors.basic,
       child: GestureDetector(
         key: const ValueKey<String>('sideSplitLayoutResizer'),
         behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (details) {
-          final direction = widget.mainPosition == SideSplitMainPosition.start
-              ? -1.0
-              : 1.0;
-          _updatePanelWidth(index, details.delta.dx * direction, maxAvailable);
-        },
+        onHorizontalDragUpdate: isEnabled
+            ? (details) {
+                final direction =
+                    widget.mainPosition == SideSplitMainPosition.start
+                    ? -1.0
+                    : 1.0;
+                _updatePanelWidth(
+                  index,
+                  details.delta.dx * direction,
+                  maxAvailable,
+                );
+              }
+            : null,
         child: VerticalDivider(
           width: 8,
           thickness: widget.dividerWidth,
           color: widget.dividerColor,
         ),
       ),
+    );
+  }
+
+  Widget _buildAnimatedResizeHandle(int? selectedIndex, double maxAvailable) {
+    return AnimatedContainer(
+      key: const ValueKey<String>('sideSplitLayoutAnimatedResizeHandle'),
+      duration: widget.panelAnimationDuration,
+      curve: widget.panelAnimationCurve,
+      width: selectedIndex == null ? 0 : 8,
+      clipBehavior: Clip.hardEdge,
+      decoration: const BoxDecoration(),
+      child: SizedBox.expand(
+        child: _buildResizeHandle(selectedIndex, maxAvailable),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedPanel(int? selected, double maxAvailable) {
+    final selectedIndex =
+        selected != null && selected >= 0 && selected < widget.panels.length
+        ? selected
+        : null;
+    final targetWidth = selectedIndex == null
+        ? 0.0
+        : _widthFor(selectedIndex, maxAvailable);
+    final panelIndices = <int>{
+      ..._keptAlivePanels,
+      ...?selectedIndex == null ? null : <int>[selectedIndex],
+    };
+
+    return AnimatedContainer(
+      key: const ValueKey<String>('sideSplitLayoutAnimatedPanel'),
+      duration: widget.panelAnimationDuration,
+      curve: widget.panelAnimationCurve,
+      width: targetWidth,
+      clipBehavior: Clip.hardEdge,
+      decoration: const BoxDecoration(),
+      child: panelIndices.isEmpty
+          ? const SizedBox.shrink()
+          : Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                for (final index in panelIndices)
+                  Offstage(
+                    offstage: index != selectedIndex,
+                    child: TickerMode(
+                      enabled: index == selectedIndex,
+                      child: SizedBox.expand(
+                        key: ValueKey<int>(index),
+                        child: widget.panels[index].panel,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 
@@ -228,32 +333,30 @@ class _SideSplitLayoutState extends State<SideSplitLayout> {
                 ),
               );
 
-        final panel =
-            selected != null && selected >= 0 && selected < widget.panels.length
-            ? SizedBox(
-                key: ValueKey<int>(selected),
-                width: _widthFor(selected, maxPanelWidth),
-                child: widget.panels[selected].panel,
-              )
-            : null;
-
-        final resizeHandle = panel != null
-            ? _buildResizeHandle(selected!, maxPanelWidth)
-            : null;
+        final hasSelection =
+            selected != null &&
+            selected >= 0 &&
+            selected < widget.panels.length;
+        final selectedIndex = hasSelection ? selected : null;
+        final animatedPanel = _buildAnimatedPanel(selected, maxPanelWidth);
+        final animatedResizeHandle = _buildAnimatedResizeHandle(
+          selectedIndex,
+          maxPanelWidth,
+        );
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: widget.mainPosition == SideSplitMainPosition.start
               ? <Widget>[
                   Expanded(child: widget.child),
-                  ?resizeHandle,
-                  ?panel,
+                  animatedResizeHandle,
+                  animatedPanel,
                   sideBar,
                 ]
               : <Widget>[
                   sideBar,
-                  ?panel,
-                  ?resizeHandle,
+                  animatedPanel,
+                  animatedResizeHandle,
                   Expanded(child: widget.child),
                 ],
         );

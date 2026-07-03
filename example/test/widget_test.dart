@@ -1,25 +1,28 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:desktop_widgets_example/main.dart';
 
 void main() {
-  testWidgets('Verify Platform version', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('shows the SideSplitLayout demo tab', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
 
-    // Verify that platform version is retrieved.
+    await tester.tap(find.text('SideSplitLayout'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Main area'), findsOneWidget);
+    expect(find.textContaining('Current selection:'), findsOneWidget);
     expect(
-      find.byWidgetPredicate(
-        (Widget widget) =>
-            widget is Text && widget.data!.startsWith('Running on:'),
+      find.text(
+        'Switch from Search to Settings to see the width animate continuously from A to B.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Use the external buttons to verify controlled mode stays stable during animation.',
       ),
       findsOneWidget,
     );
