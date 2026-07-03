@@ -506,6 +506,63 @@ void main() {
       expect(find.text('Panel 0'), findsNothing);
     });
 
+    testWidgets(
+      'toggles off with one tap even when tapped during opening animation in controlled mode',
+      (tester) async {
+        const animatedPanelKey = ValueKey<String>(
+          'sideSplitLayoutAnimatedPanel',
+        );
+        int? selected;
+        final events = <int?>[];
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) => SideSplitLayout(
+                  panelWidth: 240,
+                  panelAnimationDuration: const Duration(milliseconds: 400),
+                  panelAnimationCurve: Curves.linear,
+                  selectedIndex: selected,
+                  onSelectedIndexChanged: (index) {
+                    events.add(index);
+                    setState(() => selected = index);
+                  },
+                  panels: const [
+                    SidePanel(
+                      button: Icon(Icons.search),
+                      panel: Text('Panel 0'),
+                    ),
+                  ],
+                  child: const Text('Main Content'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.search));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(
+          tester.getSize(find.byKey(animatedPanelKey)).width,
+          greaterThan(0),
+        );
+
+        await tester.tap(find.byIcon(Icons.search));
+        await tester.pumpAndSettle();
+        expect(events, <int?>[0, null]);
+        expect(selected, isNull);
+        expect(
+          tester
+              .widget<SideSplitLayout>(find.byType(SideSplitLayout))
+              .selectedIndex,
+          isNull,
+        );
+        expect(find.text('Panel 0'), findsNothing);
+      },
+    );
+
     testWidgets('panel uses default width', (tester) async {
       await tester.pumpWidget(
         MaterialApp(

@@ -177,11 +177,13 @@ class _SearchDraftPanelState extends State<_SearchDraftPanel> {
               ),
             ),
             const SizedBox(height: 12),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _includeTitles,
-              title: const Text('Include titles'),
-              onChanged: (value) => setState(() => _includeTitles = value),
+            const Text('Include titles'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Switch(
+                value: _includeTitles,
+                onChanged: (value) => setState(() => _includeTitles = value),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
