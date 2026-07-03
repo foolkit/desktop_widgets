@@ -123,12 +123,18 @@ class _SideSplitLayoutState extends State<SideSplitLayout> {
   final Map<int, double> _panelWidths = <int, double>{};
   final Set<int> _keptAlivePanels = <int>{};
 
-  int? get _effectiveIndex => widget.selectedIndex ?? _selectedIndex;
+  bool get _isControlled =>
+      widget.selectedIndex != null ||
+      (widget.onSelectedIndexChanged != null &&
+          widget.initialSelectedIndex == null);
+
+  int? get _effectiveIndex =>
+      _isControlled ? widget.selectedIndex : _selectedIndex;
 
   @override
   void initState() {
     super.initState();
-    if (widget.selectedIndex == null) {
+    if (!_isControlled) {
       _selectedIndex = widget.initialSelectedIndex;
     }
     _interactionIndex = _effectiveIndex;
@@ -138,7 +144,7 @@ class _SideSplitLayoutState extends State<SideSplitLayout> {
   @override
   void didUpdateWidget(covariant SideSplitLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.selectedIndex != oldWidget.selectedIndex) {
+    if (_isControlled && widget.selectedIndex != oldWidget.selectedIndex) {
       _interactionIndex = widget.selectedIndex;
     }
     _syncKeptAlivePanels();
@@ -150,7 +156,7 @@ class _SideSplitLayoutState extends State<SideSplitLayout> {
     _interactionIndex = next;
     _cachePanelIfNeeded(next);
 
-    if (widget.selectedIndex == null) {
+    if (!_isControlled) {
       setState(() => _selectedIndex = next);
     }
     widget.onSelectedIndexChanged?.call(next);
