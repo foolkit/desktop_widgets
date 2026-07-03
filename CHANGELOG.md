@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Unreleased
+## 0.03
 
 - SideSplitLayout: Add `SidePanel.keepAlive` to preserve panel state after closing
 - SideSplitLayout: Expose `panelAnimationDuration` and `panelAnimationCurve` with defaults `200ms` and `Curves.easeOutCubic`
