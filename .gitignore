@@ -35,5 +35,6 @@ migrate_working_dir/
 # Agent related
 .agents/
 **/superpowers/
+.worktrees/
 
 .vscode

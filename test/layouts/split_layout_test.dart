@@ -2,6 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:desktop_widgets/src/layouts/split_layout.dart';
 
+class _CounterPanel extends StatefulWidget {
+  const _CounterPanel({super.key});
+
+  @override
+  State<_CounterPanel> createState() => _CounterPanelState();
+}
+
+class _CounterPanelState extends State<_CounterPanel> {
+  var _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        Text('count=$_count'),
+        TextButton(
+          onPressed: () => setState(() => _count++),
+          child: const Text('inc'),
+        ),
+      ],
+    );
+  }
+}
+
 void main() {
   group('SplitLayout', () {
     testWidgets('renders two panels by default', (tester) async {
@@ -235,6 +259,126 @@ void main() {
       expect(find.text('Panel 1'), findsOneWidget);
 
       controller.dispose();
+    });
+
+    testWidgets('animates panel sizes when toggling visibility (mid-frame)',
+        (tester) async {
+      const animationDuration = Duration(milliseconds: 400);
+      final controller = SplitLayoutController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: SplitLayout(
+                controller: controller,
+                panelAnimationDuration: animationDuration,
+                panelAnimationCurve: Curves.linear,
+                panels: const [
+                  SplitPanel(child: SizedBox.expand(key: ValueKey('panel0'))),
+                  SplitPanel(child: SizedBox.expand(key: ValueKey('panel1'))),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final panel0Finder = find.byKey(const ValueKey('panel0'));
+      final panel1Finder = find.byKey(const ValueKey('panel1'));
+
+      final panel0Initial = tester.getSize(panel0Finder).width;
+      final panel1Initial = tester.getSize(panel1Finder).width;
+      expect(panel0Initial, moreOrLessEquals(396, epsilon: 2));
+      expect(panel1Initial, moreOrLessEquals(396, epsilon: 2));
+
+      controller.setPanelVisible(0, false);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final panel0MidClose = tester.getSize(panel0Finder).width;
+      final panel1MidClose = tester.getSize(panel1Finder).width;
+      expect(panel0MidClose, moreOrLessEquals(198, epsilon: 2));
+      expect(panel1MidClose, moreOrLessEquals(598, epsilon: 2));
+
+      await tester.pumpAndSettle();
+      expect(panel0Finder, findsNothing);
+      expect(tester.getSize(panel1Finder).width, moreOrLessEquals(800, epsilon: 2));
+
+      controller.setPanelVisible(0, true);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final panel0MidOpen = tester.getSize(panel0Finder).width;
+      final panel1MidOpen = tester.getSize(panel1Finder).width;
+      expect(panel0MidOpen, moreOrLessEquals(198, epsilon: 2));
+      expect(panel1MidOpen, moreOrLessEquals(598, epsilon: 2));
+
+      await tester.pumpAndSettle();
+      expect(tester.getSize(panel0Finder).width, moreOrLessEquals(396, epsilon: 2));
+    });
+
+    testWidgets('keeps panel state when keepAlive is true', (tester) async {
+      final controller = SplitLayoutController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SplitLayout(
+              controller: controller,
+              panels: const [
+                SplitPanel(child: _CounterPanel(), keepAlive: true),
+                SplitPanel(child: SizedBox.shrink()),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('count=0'), findsOneWidget);
+      await tester.tap(find.text('inc'));
+      await tester.pumpAndSettle();
+      expect(find.text('count=1'), findsOneWidget);
+
+      controller.setPanelVisible(0, false);
+      await tester.pumpAndSettle();
+      expect(find.text('count=1'), findsNothing);
+
+      controller.setPanelVisible(0, true);
+      await tester.pumpAndSettle();
+      expect(find.text('count=1'), findsOneWidget);
+    });
+
+    testWidgets('drops panel state when keepAlive is false', (tester) async {
+      final controller = SplitLayoutController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SplitLayout(
+              controller: controller,
+              panels: const [
+                SplitPanel(child: _CounterPanel()),
+                SplitPanel(child: SizedBox.shrink()),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('count=0'), findsOneWidget);
+      await tester.tap(find.text('inc'));
+      await tester.pumpAndSettle();
+      expect(find.text('count=1'), findsOneWidget);
+
+      controller.setPanelVisible(0, false);
+      await tester.pumpAndSettle();
+
+      controller.setPanelVisible(0, true);
+      await tester.pumpAndSettle();
+      expect(find.text('count=0'), findsOneWidget);
     });
 
     testWidgets('respects min and max size', (tester) async {

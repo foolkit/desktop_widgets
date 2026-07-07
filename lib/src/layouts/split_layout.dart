@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
@@ -30,6 +31,7 @@ class SplitPanel {
     this.size,
     this.minSize,
     this.maxSize,
+    this.keepAlive = false,
   });
 
   /// 分栏内容。
@@ -54,6 +56,7 @@ class SplitPanel {
 
   /// 最大尺寸（宽度或高度）。
   final double? maxSize;
+  final bool keepAlive;
 }
 
 /// 用于从外部控制 [SplitLayout] 的状态。
@@ -98,6 +101,8 @@ class SplitLayout extends StatefulWidget {
     this.resizable = true,
     this.dividerThickness = 1,
     this.dividerColor,
+    this.panelAnimationDuration = const Duration(milliseconds: 200),
+    this.panelAnimationCurve = Curves.easeOutCubic,
     this.controller,
   }) : assert(panels.length == 2, 'SplitLayout requires exactly 2 panels');
 
@@ -119,6 +124,10 @@ class SplitLayout extends StatefulWidget {
   /// 分隔线颜色，默认使用 [ThemeData.dividerColor]。
   final Color? dividerColor;
 
+  final Duration panelAnimationDuration;
+
+  final Curve panelAnimationCurve;
+
   /// 外部控制器，用于控制分栏显隐。
   final SplitLayoutController? controller;
 
@@ -126,11 +135,24 @@ class SplitLayout extends StatefulWidget {
   State<SplitLayout> createState() => _SplitLayoutState();
 }
 
-class _SplitLayoutState extends State<SplitLayout> {
+class _SplitLayoutState extends State<SplitLayout>
+    with SingleTickerProviderStateMixin {
   late final SplitLayoutController _internalController;
+  late final AnimationController _visibilityController;
+  late Animation<double> _visibilityAnimation;
 
   SplitLayoutController get _effectiveController =>
       widget.controller ?? _internalController;
+
+  bool _lastPanel0Visible = true;
+  bool _lastPanel1Visible = true;
+  bool _visibilityAnimating = false;
+  double _currentPanel0Size = 0.0;
+  double _currentDividerSize = 0.0;
+  double _currentPanel1Size = 0.0;
+  double _fromPanel0Size = 0.0;
+  double _fromDividerSize = 0.0;
+  double _fromPanel1Size = 0.0;
 
   /// 在 [SplitSizeUnit.proportional] 模式下，第一个分栏占可用空间的比例。
   double _ratio = 0.5;
@@ -144,8 +166,29 @@ class _SplitLayoutState extends State<SplitLayout> {
   @override
   void initState() {
     super.initState();
+    _visibilityController = AnimationController(
+      vsync: this,
+      duration: widget.panelAnimationDuration,
+    )
+      ..addListener(() {
+        if (_visibilityAnimating) {
+          setState(() {});
+        }
+      })
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          if (!mounted) return;
+          setState(() => _visibilityAnimating = false);
+        }
+      });
+    _visibilityAnimation = CurvedAnimation(
+      parent: _visibilityController,
+      curve: widget.panelAnimationCurve,
+    );
     _internalController = SplitLayoutController();
     _internalController.addListener(_onControllerChanged);
+    _lastPanel0Visible = _effectiveController.isPanelVisible(0);
+    _lastPanel1Visible = _effectiveController.isPanelVisible(1);
     _initSizing();
   }
 
@@ -162,6 +205,14 @@ class _SplitLayoutState extends State<SplitLayout> {
       oldWidget.controller?.removeListener(_onControllerChanged);
       widget.controller?.addListener(_onControllerChanged);
     }
+    if (oldWidget.panelAnimationDuration != widget.panelAnimationDuration ||
+        oldWidget.panelAnimationCurve != widget.panelAnimationCurve) {
+      _visibilityController.duration = widget.panelAnimationDuration;
+      _visibilityAnimation = CurvedAnimation(
+        parent: _visibilityController,
+        curve: widget.panelAnimationCurve,
+      );
+    }
 
     final prioritiesChanged = oldWidget.panels[0].priority !=
             widget.panels[0].priority ||
@@ -175,6 +226,7 @@ class _SplitLayoutState extends State<SplitLayout> {
   void dispose() {
     _internalController.dispose();
     widget.controller?.removeListener(_onControllerChanged);
+    _visibilityController.dispose();
     super.dispose();
   }
 
@@ -192,7 +244,23 @@ class _SplitLayoutState extends State<SplitLayout> {
     }
   }
 
-  void _onControllerChanged() => setState(() {});
+  void _onControllerChanged() {
+    final panel0Visible = _effectiveController.isPanelVisible(0);
+    final panel1Visible = _effectiveController.isPanelVisible(1);
+
+    final visibilityChanged =
+        panel0Visible != _lastPanel0Visible || panel1Visible != _lastPanel1Visible;
+    if (visibilityChanged) {
+      _visibilityAnimating = true;
+      _fromPanel0Size = _currentPanel0Size;
+      _fromDividerSize = _currentDividerSize;
+      _fromPanel1Size = _currentPanel1Size;
+      _visibilityController.forward(from: 0.0);
+    }
+    _lastPanel0Visible = panel0Visible;
+    _lastPanel1Visible = panel1Visible;
+    setState(() {});
+  }
 
   double get _dividerHitSize =>
       widget.resizable ? math.max(8.0, widget.dividerThickness) : widget.dividerThickness;
@@ -248,22 +316,47 @@ class _SplitLayoutState extends State<SplitLayout> {
     setState(() {});
   }
 
-  Widget _buildPanel(SplitPanel panel, double size) {
-    final child = Container(
+  Widget _buildPanelContent(int index, SplitPanel panel) {
+    return Container(
       color: panel.backgroundColor,
-      child: panel.child,
+      child: KeyedSubtree(
+        key: ValueKey<int>(index),
+        child: panel.child,
+      ),
     );
-
-    if (!size.isFinite || size <= 0) {
-      return Expanded(child: child);
-    }
-
-    return widget.axis == SplitAxis.horizontal
-        ? SizedBox(width: size, child: child)
-        : SizedBox(height: size, child: child);
   }
 
-  Widget _buildDivider(double available) {
+  Widget _buildPanelWithVisibility(
+    int index,
+    SplitPanel panel,
+    double size, {
+    required bool visible,
+  }) {
+    final shouldBuild = visible || panel.keepAlive || _visibilityAnimating;
+    if (!shouldBuild) return const SizedBox.shrink();
+
+    final contentVisible = visible || _visibilityAnimating;
+    final content = Offstage(
+      offstage: !contentVisible,
+      child: TickerMode(
+        enabled: contentVisible,
+        child: _buildPanelContent(index, panel),
+      ),
+    );
+
+    if (!size.isFinite) {
+      if (!contentVisible) return const SizedBox.shrink();
+      return Expanded(child: content);
+    }
+
+    return ClipRect(
+      child: widget.axis == SplitAxis.horizontal
+          ? SizedBox(width: size, child: content)
+          : SizedBox(height: size, child: content),
+    );
+  }
+
+  Widget _buildDivider(double available, {required bool enabled}) {
     final dividerColor = widget.dividerColor ?? Theme.of(context).dividerColor;
     final hitSize = _dividerHitSize;
 
@@ -289,6 +382,12 @@ class _SplitLayoutState extends State<SplitLayout> {
     }
 
     if (!widget.resizable) return visualDivider;
+    if (!enabled) {
+      return MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        child: visualDivider,
+      );
+    }
 
     return MouseRegion(
       cursor: widget.axis == SplitAxis.horizontal
@@ -320,35 +419,98 @@ class _SplitLayoutState extends State<SplitLayout> {
         final panel1Visible = _effectiveController.isPanelVisible(1);
 
         if (!panel0Visible && !panel1Visible) {
-          return const SizedBox.shrink();
+          if (!widget.panels[0].keepAlive && !widget.panels[1].keepAlive) {
+            return const SizedBox.shrink();
+          }
+
+          return Offstage(
+            offstage: true,
+            child: TickerMode(
+              enabled: false,
+              child: Stack(
+                children: <Widget>[
+                  if (widget.panels[0].keepAlive)
+                    _buildPanelContent(0, widget.panels[0]),
+                  if (widget.panels[1].keepAlive)
+                    _buildPanelContent(1, widget.panels[1]),
+                ],
+              ),
+            ),
+          );
         }
 
-        if (!panel0Visible || !panel1Visible) {
-          final visibleIndex = panel0Visible ? 0 : 1;
-          return _buildPanel(widget.panels[visibleIndex], total);
-        }
+        final bothVisible = panel0Visible && panel1Visible;
 
-        final dividerSize = _dividerHitSize;
-        final available = total - dividerSize;
-        final primarySize = _primarySize(available);
-        final secondarySize = available - primarySize;
+        final dividerTo = bothVisible ? _dividerHitSize : 0.0;
+        final availableTo = total - dividerTo;
 
-        final children = <Widget>[];
-        if (_primaryIndex == 0) {
-          children
-            ..add(_buildPanel(widget.panels[0], primarySize))
-            ..add(_buildDivider(available))
-            ..add(_buildPanel(widget.panels[1], secondarySize));
+        late final double panel0To;
+        late final double panel1To;
+        if (bothVisible) {
+          final primarySize = _primarySize(availableTo);
+          final secondarySize = availableTo - primarySize;
+          panel0To = _primaryIndex == 0 ? primarySize : secondarySize;
+          panel1To = _primaryIndex == 0 ? secondarySize : primarySize;
         } else {
-          children
-            ..add(_buildPanel(widget.panels[0], secondarySize))
-            ..add(_buildDivider(available))
-            ..add(_buildPanel(widget.panels[1], primarySize));
+          panel0To = panel0Visible ? total : 0.0;
+          panel1To = panel1Visible ? total : 0.0;
         }
 
-        return widget.axis == SplitAxis.horizontal
-            ? Row(children: children)
-            : Column(children: children);
+        Widget buildWithSizes({
+          required double panel0Size,
+          required double dividerSize,
+          required double panel1Size,
+        }) {
+          final dividerSlot = ClipRect(
+            child: widget.axis == SplitAxis.horizontal
+                ? SizedBox(
+                    width: dividerSize,
+                    child: _buildDivider(availableTo, enabled: bothVisible),
+                  )
+                : SizedBox(
+                    height: dividerSize,
+                    child: _buildDivider(availableTo, enabled: bothVisible),
+                  ),
+          );
+
+          final children = <Widget>[
+            _buildPanelWithVisibility(
+              0,
+              widget.panels[0],
+              panel0Size,
+              visible: panel0Visible,
+            ),
+            dividerSlot,
+            _buildPanelWithVisibility(
+              1,
+              widget.panels[1],
+              panel1Size,
+              visible: panel1Visible,
+            ),
+          ];
+
+          return widget.axis == SplitAxis.horizontal
+              ? Row(children: children)
+              : Column(children: children);
+        }
+
+        if (_visibilityAnimating) {
+          final t = _visibilityAnimation.value;
+          return buildWithSizes(
+            panel0Size: lerpDouble(_fromPanel0Size, panel0To, t) ?? panel0To,
+            dividerSize: lerpDouble(_fromDividerSize, dividerTo, t) ?? dividerTo,
+            panel1Size: lerpDouble(_fromPanel1Size, panel1To, t) ?? panel1To,
+          );
+        }
+
+        _currentPanel0Size = panel0To;
+        _currentDividerSize = dividerTo;
+        _currentPanel1Size = panel1To;
+        return buildWithSizes(
+          panel0Size: panel0To,
+          dividerSize: dividerTo,
+          panel1Size: panel1To,
+        );
       },
     );
   }

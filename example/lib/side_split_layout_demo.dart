@@ -189,6 +189,7 @@ class _SearchDraftPanelState extends State<_SearchDraftPanel> {
             Text(
               'Close the panel and open it again to confirm the draft and switch state are preserved.',
             ),
+            const Spacer(),
           ],
         ),
       ),
