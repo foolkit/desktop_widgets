@@ -195,5 +195,42 @@ void main() {
       expect(find.text('Fullscreen alpha'), findsOneWidget);
       expect(find.byIcon(Icons.close), findsOneWidget);
     });
+
+    testWidgets(
+      'registering fullscreen target during AnimatedBuilder rebuild does not mutate overlay during build',
+      (tester) async {
+        final controller = FullscreenController()..show('alpha');
+        final notifier = ValueNotifier<int>(0);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: AnimatedBuilder(
+                animation: notifier,
+                builder: (BuildContext context, Widget? child) {
+                  return FullscreenScope(
+                    controller: controller,
+                    child: FullscreenTarget(
+                      identifier: 'alpha',
+                      fullscreenChild: const Text('Fullscreen alpha'),
+                      child: Text('Inline alpha ${notifier.value}'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+
+        expect(tester.takeException(), isNull);
+
+        notifier.value = 1;
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+        await tester.pump();
+        expect(find.text('Fullscreen alpha'), findsOneWidget);
+      },
+    );
   });
 }
