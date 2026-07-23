@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 /// 全屏内容的构建器。
@@ -123,6 +124,7 @@ class _FullscreenScopeState extends State<FullscreenScope> {
       <Object, _FullscreenTargetState>{};
 
   OverlayEntry? _overlayEntry;
+  bool _overlaySyncScheduled = false;
 
   FullscreenController get _effectiveController =>
       widget.controller ?? _internalController;
@@ -143,9 +145,9 @@ class _FullscreenScopeState extends State<FullscreenScope> {
         _handleControllerChanged,
       );
       _effectiveController.addListener(_handleControllerChanged);
-      _syncOverlay();
+      _scheduleOverlaySync();
     } else if (_overlayEntry != null) {
-      _overlayEntry!.markNeedsBuild();
+      _scheduleOverlaySync();
     }
   }
 
@@ -160,13 +162,13 @@ class _FullscreenScopeState extends State<FullscreenScope> {
 
   void _register(_FullscreenTargetState target) {
     _targets[target.widget.identifier] = target;
-    _syncOverlay();
+    _scheduleOverlaySync();
   }
 
   void _unregister(_FullscreenTargetState target, Object identifier) {
     if (identical(_targets[identifier], target)) {
       _targets.remove(identifier);
-      _syncOverlay();
+      _scheduleOverlaySync();
     }
   }
 
@@ -175,11 +177,26 @@ class _FullscreenScopeState extends State<FullscreenScope> {
       _targets.remove(oldIdentifier);
     }
     _targets[target.widget.identifier] = target;
-    _syncOverlay();
+    _scheduleOverlaySync();
   }
 
   void _handleControllerChanged() {
-    _syncOverlay();
+    _scheduleOverlaySync();
+  }
+
+  void _scheduleOverlaySync() {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      _syncOverlay();
+      return;
+    }
+    if (_overlaySyncScheduled) return;
+    _overlaySyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlaySyncScheduled = false;
+      if (!mounted) return;
+      _syncOverlay();
+    });
   }
 
   void _syncOverlay() {
