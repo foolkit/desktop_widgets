@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:desktop_widgets/src/layouts/split_layout.dart';
 
 class _CounterPanel extends StatefulWidget {
-  const _CounterPanel({super.key});
+  const _CounterPanel();
 
   @override
   State<_CounterPanel> createState() => _CounterPanelState();
