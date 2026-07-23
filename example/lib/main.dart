@@ -1,10 +1,50 @@
-import 'package:flutter/material.dart';
 import 'package:desktop_widgets/desktop_widgets.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
+import 'fullscreen_demo.dart';
 import 'side_split_layout_demo.dart';
 import 'split_layout_demo.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _configureDesktopWindow();
   runApp(const MyApp());
+}
+
+Future<void> _configureDesktopWindow() async {
+  if (kIsWeb || !_isDesktopPlatform()) {
+    return;
+  }
+
+  await windowManager.ensureInitialized();
+
+  const windowOptions = WindowOptions(
+    size: Size(1280, 860),
+    minimumSize: Size(960, 640),
+    center: true,
+    backgroundColor: Colors.transparent,
+    skipTaskbar: false,
+    title: 'Desktop Widgets Demo',
+  );
+
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
+}
+
+bool _isDesktopPlatform() {
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.windows:
+    case TargetPlatform.linux:
+    case TargetPlatform.macOS:
+      return true;
+    case TargetPlatform.android:
+    case TargetPlatform.iOS:
+    case TargetPlatform.fuchsia:
+      return false;
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -15,7 +55,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Desktop Widgets Demo',
       home: DefaultTabController(
-        length: 3,
+        length: 4,
         child: Scaffold(
           appBar: AppBar(
             title: const Text('Desktop Widgets Demo'),
@@ -24,6 +64,7 @@ class MyApp extends StatelessWidget {
                 Tab(text: 'DateTimePicker'),
                 Tab(text: 'SideSplitLayout'),
                 Tab(text: 'SplitLayout'),
+                Tab(text: 'Fullscreen'),
               ],
             ),
           ),
@@ -35,6 +76,7 @@ class MyApp extends StatelessWidget {
               ),
               SideSplitLayoutDemo(),
               SplitLayoutDemo(),
+              FullscreenDemo(),
             ],
           ),
         ),
