@@ -39,4 +39,4 @@ migrate_working_dir/
 
 .vscode
 .temp
-.codegraph
+.*/
