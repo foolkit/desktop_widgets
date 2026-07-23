@@ -1,6 +1,6 @@
 name: desktop_widgets
 description: 'A Flutter plugin project for desktop-styled widgets'
-version: 0.0.3
+version: 0.0.4
 homepage:
 repository: https://github.com/foolkit/desktop_widgets
 

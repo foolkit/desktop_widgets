@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## 0.03
+## 0.0.4
+
+- Add fullscreen component
+
+## 0.0.3
 
 - SideSplitLayout: Add `SidePanel.keepAlive` to preserve panel state after closing
 - SideSplitLayout: Expose `panelAnimationDuration` and `panelAnimationCurve` with defaults `200ms` and `Curves.easeOutCubic`

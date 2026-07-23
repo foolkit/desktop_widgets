@@ -11,5 +11,7 @@ A Flutter plugin that includes multiple desktop-style widgets
 
 - DateTimePicker
 - SideSplitLayout
+- SplitLayout
+- FullscreenScope+FullscreenTarget
 
 
