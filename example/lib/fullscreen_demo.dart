@@ -436,6 +436,8 @@ class _FullscreenDemoState extends State<FullscreenDemo> {
   }
 
   Widget _buildPreviewCard(ThemeData theme) {
+    const previewWorkspaceHeight = 272.0;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Container(
@@ -476,7 +478,10 @@ class _FullscreenDemoState extends State<FullscreenDemo> {
               ),
             ),
             const SizedBox(height: 20),
-            Expanded(child: _buildWorkspacePreview(theme, compact: true)),
+            SizedBox(
+              height: previewWorkspaceHeight,
+              child: _buildWorkspacePreview(theme, compact: true),
+            ),
           ],
         ),
       ),
